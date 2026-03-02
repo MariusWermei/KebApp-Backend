@@ -79,11 +79,17 @@ router.post("/signin", async (req, res) => {
     });
 
     if (!user) {
-      return res.json({ result: false, error: "User not found" });
+      return res.json({
+        result: false,
+        error: "Mot de passe ou email incorrect",
+      });
     }
 
     if (!bcrypt.compareSync(req.body.password, user.password)) {
-      return res.json({ result: false, error: "Wrong password" });
+      return res.json({
+        result: false,
+        error: "Mot de passe ou email incorrect",
+      });
     }
 
     // Optionnel : régénérer un token à chaque login
@@ -104,8 +110,6 @@ router.post("/signin", async (req, res) => {
     res.json({ result: false, error: error.message });
   }
 });
-
-v;
 
 router.post("/google", async (req, res) => {
   try {

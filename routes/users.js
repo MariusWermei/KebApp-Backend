@@ -105,8 +105,6 @@ router.post("/signin", async (req, res) => {
   }
 });
 
-v;
-
 router.post("/google", async (req, res) => {
   try {
     const { idToken } = req.body;

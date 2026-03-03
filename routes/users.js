@@ -236,4 +236,28 @@ router.post("/apple", async (req, res) => {
   }
 });
 
+// UPDATE PREFERENCES (tags onboarding)
+router.put("/preferences", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.json({ result: false, error: "Token manquant" });
+    }
+
+    const user = await User.findOne({ token });
+
+    if (!user) {
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+    }
+
+    user.preferences = req.body.preferences;
+    await user.save();
+
+    res.json({ result: true, preferences: user.preferences });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
+
 module.exports = router;

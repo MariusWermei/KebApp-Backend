@@ -1,6 +1,6 @@
 require("dotenv").config();
-require("./models/connection");
-const Restaurant = require("./models/restaurants");
+require("../models/connection");
+const Restaurant = require("../models/restaurants");
 
 async function assignTags() {
   const restaurants = await Restaurant.find();

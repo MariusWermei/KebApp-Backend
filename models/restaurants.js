@@ -60,6 +60,8 @@ const restaurantSchema = mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+restaurantSchema.index({ location: "2dsphere" });
+
 const Restaurant = mongoose.model("restaurants", restaurantSchema);
 
 module.exports = Restaurant;

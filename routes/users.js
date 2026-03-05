@@ -18,7 +18,13 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // Cloudinary
 const cloudinary = require("cloudinary").v2;
-const streamifier = require("streamifier");
+const uniqid = require("uniqid");
+const fs = require("fs");
+
+console.log("Cloudinary config:", {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+});
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -67,6 +73,7 @@ router.post("/signup", async (req, res) => {
         email: savedUser.email,
         username: savedUser.username,
         points: savedUser.points,
+        avatar: savedUser.avatar || null,
       },
     });
   } catch (error) {
@@ -114,6 +121,7 @@ router.post("/signin", async (req, res) => {
         email: user.email,
         username: user.username,
         points: user.points,
+        avatar: user.avatar || null,
       },
     });
   } catch (error) {

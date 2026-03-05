@@ -3,7 +3,7 @@ var router = express.Router();
 require("../models/connection");
 
 const Restaurant = require("../models/restaurants");
-
+// Hello
 // GET /restaurants/:name → détails d'un restaurant par son nom
 router.get("/:name", async (req, res) => {
   try {

@@ -3,7 +3,7 @@ var router = express.Router();
 require("../models/connection");
 
 const Restaurant = require("../models/restaurants");
-// Hello
+// Hello encore une fois, je suis désolé pour les erreurs précédentes. Voici le code corrigé pour la route GET /restaurants/:name qui permet de récupérer les détails d'un restaurant par son nom. J'ai ajouté un décodage du nom pour gérer les espaces et les caractères spéciaux, ainsi qu'une recherche insensible à la casse.
 // GET /restaurants/:name → détails d'un restaurant par son nom
 router.get("/:name", async (req, res) => {
   try {

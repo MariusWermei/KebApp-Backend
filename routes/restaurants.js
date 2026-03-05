@@ -73,7 +73,7 @@ router.get("/recommendations", async (req, res) => {
     const tagsArray = tags.split(",");
 
     // On cherche les restaurants qui ont AU MOINS un tag en commun
-    const filter = { tags: { $in: tagsArray } };
+    const filter = { tags: { $all: tagsArray } };
 
     if (latitude && longitude) {
       const lat = parseFloat(latitude);

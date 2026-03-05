@@ -16,6 +16,16 @@ const appleJwks = jwksClient({
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Cloudinary
+const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // SIGNUP (création compte local)
 
 router.post("/signup", async (req, res) => {
@@ -255,6 +265,33 @@ router.put("/preferences", async (req, res) => {
     await user.save();
 
     res.json({ result: true, preferences: user.preferences });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
+
+// CLOUDINARY
+router.put("/avatar", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ result: false, error: "Token manquant" });
+
+    const user = await User.findOne({ token });
+    if (!user)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    const photoPath = `./tmp/${uniqid()}.jpg`;
+    const resultMove = await req.files.avatar.mv(photoPath);
+
+    if (!resultMove) {
+      const resultCloudinary = await cloudinary.uploader.upload(photoPath);
+      fs.unlinkSync(photoPath);
+      user.avatar = resultCloudinary.secure_url;
+      await user.save();
+      res.json({ result: true, avatar: user.avatar });
+    } else {
+      res.json({ result: false, error: resultMove });
+    }
   } catch (error) {
     res.json({ result: false, error: error.message });
   }

@@ -18,7 +18,7 @@ router.get("/", async (req, res) => {
     // Filtre par tags (ex: ?tags=halal,veggie)
     if (tags) {
       const tagsArray = tags.split(",");
-      filter.tags = { $in: tagsArray };
+      filter.tags = { $all: tagsArray };
     }
 
     let query = Restaurant.find(filter);

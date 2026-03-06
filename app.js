@@ -1,24 +1,28 @@
 require("dotenv").config();
 
-var express = require("express");
-var path = require("path");
-var cookieParser = require("cookie-parser");
-var logger = require("morgan");
+const express = require("express");
+const path = require("path");
+const cookieParser = require("cookie-parser");
+const logger = require("morgan");
+const cors = require("cors");
+const fileUpload = require("express-fileupload");
 
-var usersRouter = require("./routes/users");
-var restaurantsRouter = require("./routes/restaurants");
-var restaurantsDetailRouter = require("./routes/restaurantDetail");
 require("./models/connection");
 
-var app = express();
-var cors = require("cors");
-app.use(cors());
-app.use(express.json());
+const usersRouter = require("./routes/users");
+const restaurantsRouter = require("./routes/restaurants");
+const restaurantsDetailRouter = require("./routes/restaurantDetail");
 
+const app = express();
+
+app.use(cors());
 app.use(logger("dev"));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.use(fileUpload());
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.use("/users", usersRouter);

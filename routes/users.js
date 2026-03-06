@@ -71,7 +71,6 @@ router.post("/signup", async (req, res) => {
         id: savedUser._id,
         email: savedUser.email,
         username: savedUser.username,
-        points: savedUser.points,
         avatar: savedUser.avatar || null,
       },
     });
@@ -118,7 +117,6 @@ router.post("/signin", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
-        points: user.points,
         avatar: user.avatar || null,
       },
     });
@@ -175,7 +173,6 @@ router.post("/google", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
-        points: user.points,
         avatar: user.avatar || null,
       },
     });
@@ -242,7 +239,6 @@ router.post("/apple", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
-        points: user.points,
         avatar: user.avatar || null,
       },
     });
@@ -317,6 +313,24 @@ router.put("/avatar", async (req, res) => {
     if (photoPath && fs.existsSync(photoPath)) {
       fs.unlinkSync(photoPath);
     }
+    res.json({ result: false, error: error.message });
+  }
+});
+
+// ==============================
+// GET POINTS (fetch points actualisés depuis la BDD)
+// ==============================
+router.get("/points", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ result: false, error: "Token manquant" });
+
+    const user = await User.findOne({ token });
+    if (!user)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    res.json({ result: true, points: user.points });
+  } catch (error) {
     res.json({ result: false, error: error.message });
   }
 });

@@ -21,26 +21,30 @@ const appleJwks = jwksClient({
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Cloudinary
-const cloudinary = require("cloudinary").v2;
-const uniqid = require("uniqid");
-const fs = require("fs");
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-// ==============================
 // SIGNUP (création compte local)
-// ==============================
+
 router.post("/signup", async (req, res) => {
+  console.log("BODY =", req.body);
+  // Cloudinary
+  const cloudinary = require("cloudinary").v2;
+  const uniqid = require("uniqid");
+  const fs = require("fs");
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
+  // ==============================
+  // SIGNUP (création compte local)
+  // ==============================
   if (!checkBody(req.body, ["email", "password"])) {
     return res.json({ result: false, error: "Missing or empty fields" });
   }
 
   try {
+    // Vérifie si email déjà utilisé
     const existingUser = await User.findOne({
       email: req.body.email.toLowerCase(),
     });
@@ -71,6 +75,7 @@ router.post("/signup", async (req, res) => {
         id: savedUser._id,
         email: savedUser.email,
         username: savedUser.username,
+        points: savedUser.points,
         avatar: savedUser.avatar || null,
       },
     });
@@ -107,6 +112,7 @@ router.post("/signin", async (req, res) => {
       });
     }
 
+    // Optionnel : régénérer un token à chaque login
     user.token = uid2(32);
     await user.save();
 
@@ -117,6 +123,7 @@ router.post("/signin", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
+        points: user.points,
         avatar: user.avatar || null,
       },
     });
@@ -133,6 +140,7 @@ router.post("/google", async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.json({ result: false, error: "Missing idToken" });
 
+    // Vérifie le token Google (signature + audience)
     const ticket = await client.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -161,7 +169,7 @@ router.post("/google", async (req, res) => {
       user.authProvider = "google";
       user.googleId = googleId;
       user.avatar = user.avatar || avatar;
-      user.token = uid2(32);
+      user.token = uid2(32); // régénère ton token session
     }
 
     await user.save();
@@ -173,6 +181,7 @@ router.post("/google", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
+        points: user.points,
         avatar: user.avatar || null,
       },
     });
@@ -180,6 +189,8 @@ router.post("/google", async (req, res) => {
     res.json({ result: false, error: e.message });
   }
 });
+
+//conexion with apple
 
 // ==============================
 // APPLE AUTH
@@ -204,7 +215,7 @@ router.post("/apple", async (req, res) => {
         getAppleKey,
         {
           algorithms: ["RS256"],
-          audience: process.env.APPLE_CLIENT_ID,
+          audience: process.env.APPLE_CLIENT_ID, // Services ID ou Bundle ID selon ton setup
           issuer: "https://appleid.apple.com",
         },
         (err, payload) => (err ? reject(err) : resolve(payload)),
@@ -214,12 +225,13 @@ router.post("/apple", async (req, res) => {
     const appleId = decoded.sub;
     const email = decoded.email ? decoded.email.toLowerCase() : null;
 
+    // Apple ne renvoie pas toujours l'email à chaque login (souvent seulement la première fois)
     let user = await User.findOne({ appleId });
     if (!user && email) user = await User.findOne({ email });
 
     if (!user) {
       user = new User({
-        email: email || `apple_${appleId}@no-email.local`,
+        email: email || `apple_${appleId}@no-email.local`, // solution simple si pas d'email
         authProvider: "apple",
         appleId,
         token: uid2(32),
@@ -239,6 +251,7 @@ router.post("/apple", async (req, res) => {
         id: user._id,
         email: user.email,
         username: user.username,
+        points: user.points,
         avatar: user.avatar || null,
       },
     });

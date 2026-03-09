@@ -3,6 +3,7 @@ var router = express.Router();
 
 require("../models/connection");
 const User = require("../models/user");
+const Restaurant = require("../models/restaurants");
 const { checkBody } = require("../modules/checkBody");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
@@ -496,6 +497,70 @@ router.post("/clean-tmp", async (req, res) => {
       message: `${cleaned} fichier(s) supprimé(s)`,
       cleaned,
     });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
+
+// ==============================
+// GET FAVORITES
+// ==============================
+router.get("/favorites", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ result: false, error: "Token manquant" });
+
+    const user = await User.findOne({ token }).populate("favorites");
+    if (!user)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    res.json({ result: true, favorites: user.favorites });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
+
+// ==============================
+// ADD FAVORITE
+// ==============================
+router.post("/favorites", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ result: false, error: "Token manquant" });
+
+    const user = await User.findOne({ token });
+    if (!user)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    await User.updateOne(
+      { token },
+      { $addToSet: { favorites: req.body.restaurantId } },
+    );
+
+    res.json({ result: true });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
+
+// ==============================
+// REMOVE FAVORITE
+// ==============================
+router.delete("/favorites", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.json({ result: false, error: "Token manquant" });
+
+    const user = await User.findOne({ token });
+    if (!user)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    await User.updateOne(
+      { token },
+      { $pull: { favorites: req.body.restaurantId } },
+    );
+
+    res.json({ result: true });
   } catch (error) {
     res.json({ result: false, error: error.message });
   }

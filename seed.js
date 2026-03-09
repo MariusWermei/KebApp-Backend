@@ -113,17 +113,14 @@ const menuTest = [
 const seed = async () => {
   try {
     const restaurants = await Restaurant.find({});
-    console.log(`🍽️  ${restaurants.length} restaurants trouvés`);
 
     let count = 0;
     for (const restaurant of restaurants) {
       restaurant.menu = menuTest;
       await restaurant.save();
       count++;
-      console.log(`✅ ${count}/${restaurants.length} - ${restaurant.name}`);
     }
 
-    console.log("🎉 Seed terminé ! Tous les restaurants ont un menu.");
     process.exit(0);
   } catch (error) {
     console.error("❌ Erreur :", error.message);

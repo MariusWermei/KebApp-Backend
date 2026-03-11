@@ -1,38 +1,38 @@
 const mongoose = require("mongoose");
 
-// Schéma d'un article dans la commande
-const schemaArticle = new mongoose.Schema({
-  nom: { type: String, required: true },
-  quantite: { type: Number, required: true, min: 1 },
-  prixUnitaire: { type: Number, required: true, min: 0 },
+// Schema for an item in the order
+const itemSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  quantity: { type: Number, required: true, min: 1 },
+  unitPrice: { type: Number, required: true, min: 0 },
 });
 
-// Schéma principal d'une commande
-const schemaCommande = new mongoose.Schema(
+// Main order schema
+const orderSchema = new mongoose.Schema(
   {
-    idUtilisateur: {
+    userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",
       required: true,
     },
     restaurant: {
-      nom: { type: String, required: true },
+      name: { type: String, required: true },
       logoUrl: { type: String, default: null },
     },
-    articles: [schemaArticle],
-    prixTotal: { type: Number, required: true },
-    statut: {
-      // false = commande en cours | true = commande finalisée (livrée)
-      estFinalisee: { type: Boolean, default: false },
-      etape: {
+    items: [itemSchema],
+    totalPrice: { type: Number, required: true },
+    orderStatus: {
+      // false = order in progress | true = order finalized (delivered)
+      isFinalized: { type: Boolean, default: false },
+      step: {
         type: String,
-        enum: ["ACCEPTEE", "EN_PREPARATION", "PRETE", "LIVREE"],
-        default: "EN_PREPARATION",
+        enum: ["ACCEPTED", "PREPARING", "READY", "DELIVERED"],
+        default: "PREPARING",
       },
     },
-    heureArriveeEstimee: { type: Date, default: null },
+    estimatedArrivalTime: { type: Date, default: null },
   },
-  { timestamps: { createdAt: "dateCommande" } },
+  { timestamps: { createdAt: "orderDate" } },
 );
 
-module.exports = mongoose.model("Commande", schemaCommande);
+module.exports = mongoose.model("Order", orderSchema);

@@ -39,6 +39,17 @@ router.get("/", verifyToken, async (req, res) => {
 });
 
 // ————————————————————————————————————————
+// Helper: Generate unique order number
+// Format: CMD + YYYYMMDD + 4 random digits
+// ————————————————————————————————————————
+const generateOrderNumber = () => {
+  const date = new Date();
+  const dateStr = date.toLocaleDateString("en-CA").replace(/-/g, "");
+  const random = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return `CMD${dateStr}${random}`;
+};
+
+// ————————————————————————————————————————
 // POST /commandes
 // Create a new order
 // ————————————————————————————————————————
@@ -68,15 +79,16 @@ router.post("/", verifyToken, async (req, res) => {
       quantity: item.quantity,
     }));
 
-    // Create and save order
+    // Create and save order with order number
     const order = await new Order({
+      orderNumber: generateOrderNumber(),
       userId: req.user._id,
       restaurant,
       items: orderItems,
       totalPrice,
     }).save();
 
-    console.log("✅ Order created:", order._id);
+    console.log("✅ Order created:", order._id, "Number:", order.orderNumber);
     res.status(201).json({ result: true, order });
   } catch (error) {
     console.error("❌ Error:", error.message);

@@ -10,6 +10,7 @@ const itemSchema = new mongoose.Schema({
 // Main order schema
 const orderSchema = new mongoose.Schema(
   {
+    orderNumber: { type: String, unique: true, required: true },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "users",

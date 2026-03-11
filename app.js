@@ -12,6 +12,7 @@ require("./models/connection");
 const usersRouter = require("./routes/users");
 const restaurantsRouter = require("./routes/restaurants");
 const restaurantsDetailRouter = require("./routes/restaurantDetail");
+const commandesRouter = require("./routes/commandes");
 
 const app = express();
 
@@ -28,5 +29,6 @@ app.use(express.static(path.join(__dirname, "public")));
 app.use("/users", usersRouter);
 app.use("/restaurants", restaurantsRouter);
 app.use("/restaurants", restaurantsDetailRouter);
+app.use("/commandes", commandesRouter);
 
 module.exports = app;

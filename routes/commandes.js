@@ -1,151 +1,118 @@
 const express = require("express");
-const routeur = express.Router();
-const Commande = require("../models/commande");
-const Utilisateur = require("../models/user");
+const router = express.Router();
+const Order = require("../models/commande");
+const User = require("../models/user");
 
 // ————————————————————————————————————————
-// Middleware d'authentification
-// Vérifie le token dans le header et attache l'utilisateur à la requête
+// Authentication Middleware
+// Verify token in header and attach user to request
 // ————————————————————————————————————————
-const verifierToken = async (req, res, suivant) => {
+const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token)
-    return res.status(401).json({ result: false, message: "Token manquant" });
+    return res.status(401).json({ result: false, message: "Token missing" });
 
-  const utilisateur = await Utilisateur.findOne({ token });
-  if (!utilisateur)
-    return res.status(401).json({ result: false, message: "Token invalide" });
+  const user = await User.findOne({ token });
+  if (!user)
+    return res.status(401).json({ result: false, message: "Invalid token" });
 
-  req.utilisateur = utilisateur;
-  suivant();
+  req.user = user;
+  next();
 };
 
 // ————————————————————————————————————————
 // GET /commandes
-// Récupère toutes les commandes de l'utilisateur connecté
-// Le front se charge de séparer :
-//   - estFinalisee: false → "Commandes en cours"
-//   - estFinalisee: true  → "Commandes précédentes"
+// Retrieve all orders for connected user
+// Frontend handles separation:
+//   - isFinalized: false → "Ongoing orders"
+//   - isFinalized: true  → "Previous orders"
 // ————————————————————————————————————————
-routeur.get("/", verifierToken, async (req, res) => {
+router.get("/", verifyToken, async (req, res) => {
   try {
-    const commandes = await Commande.find({
-      idUtilisateur: req.utilisateur._id,
-    }).sort({ dateCommande: -1 });
-    res.json({ result: true, commandes });
-  } catch (erreur) {
-    res.status(500).json({ result: false, message: erreur.message });
+    const orders = await Order.find({
+      userId: req.user._id,
+    }).sort({ orderDate: -1 });
+    res.json({ result: true, orders });
+  } catch (error) {
+    res.status(500).json({ result: false, message: error.message });
   }
 });
 
 // ————————————————————————————————————————
 // POST /commandes
-// Crée une nouvelle commande
+// Create a new order
 // ————————————————————————————————————————
-routeur.post("/", verifierToken, async (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
   try {
-    const { restaurant, items, prix_total } = req.body;
+    const { restaurant, items, totalPrice } = req.body;
 
-    // Validation
-    if (!restaurant || !restaurant.nom) {
+    // Simple validation
+    if (!restaurant || !restaurant.name) {
       return res.status(400).json({
         result: false,
-        message: "Nom du restaurant requis",
+        message: "Restaurant name required",
       });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
         result: false,
-        message: "Au moins un article requis",
+        message: "At least one item required",
       });
     }
 
-    // Normaliser les items
-    const articlesNormalises = items.map((item, idx) => {
-      const nom = item.nom || item.name;
-      const prix_unitaire = item.prix_unitaire || item.basePrice || item.price;
-      const quantite = item.quantite || item.quantity || 1;
+    // Convert items to model format
+    const orderItems = items.map((item) => ({
+      name: item.name,
+      unitPrice: item.unitPrice,
+      quantity: item.quantity,
+    }));
 
-      if (!nom || nom === undefined) {
-        throw new Error(`Article ${idx + 1}: nom manquant`);
-      }
-
-      if (
-        prix_unitaire === undefined ||
-        prix_unitaire === null ||
-        isNaN(Number(prix_unitaire))
-      ) {
-        throw new Error(
-          `Article ${idx + 1} (${nom}): prix_unitaire manquant ou invalide`,
-        );
-      }
-
-      return {
-        nom,
-        prixUnitaire: Number(prix_unitaire),
-        quantite: Number(quantite),
-      };
-    });
-
-    console.log(
-      "✅ Articles normalisés:",
-      JSON.stringify(articlesNormalises, null, 2),
-    );
-
-    // Calcul du prix total
-    const prixTotalCalcule =
-      prix_total ||
-      articlesNormalises.reduce(
-        (total, article) => total + article.quantite * article.prixUnitaire,
-        0,
-      );
-
-    const nouvelleCommande = await new Commande({
-      idUtilisateur: req.utilisateur._id,
+    // Create and save order
+    const order = await new Order({
+      userId: req.user._id,
       restaurant,
-      articles: articlesNormalises,
-      prixTotal: Math.round(prixTotalCalcule * 100) / 100,
-      heureArriveeEstimee: null,
+      items: orderItems,
+      totalPrice,
     }).save();
 
-    console.log("✅ Commande créée:", nouvelleCommande._id);
-    res.status(201).json({ result: true, commande: nouvelleCommande });
-  } catch (erreur) {
-    console.error("❌ Erreur création commande:", erreur.message);
-    res.status(500).json({ result: false, message: erreur.message });
+    console.log("✅ Order created:", order._id);
+    res.status(201).json({ result: true, order });
+  } catch (error) {
+    console.error("❌ Error:", error.message);
+    res.status(500).json({ result: false, message: error.message });
   }
 });
 
 // ————————————————————————————————————————
 // PUT /commandes/:id
-// Met à jour l'étape d'une commande
-// Si l'étape est "LIVREE", la commande est automatiquement finalisée
+// Update order status
+// If status is "DELIVERED", order is automatically finalized
 // ————————————————————————————————————————
-routeur.put("/:id", verifierToken, async (req, res) => {
+router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const { etape } = req.body;
+    const { status } = req.body;
 
-    const miseAJour = {
-      "statut.etape": etape,
-      "statut.estFinalisee": etape === "LIVREE",
+    const update = {
+      "orderStatus.status": status,
+      "orderStatus.isFinalized": status === "DELIVERED",
     };
 
-    const commandeMiseAJour = await Commande.findOneAndUpdate(
-      { _id: req.params.id, idUtilisateur: req.utilisateur._id },
-      { $set: miseAJour },
+    const updatedOrder = await Order.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { $set: update },
       { new: true },
     );
 
-    if (!commandeMiseAJour)
+    if (!updatedOrder)
       return res
         .status(404)
-        .json({ result: false, message: "Commande introuvable" });
+        .json({ result: false, message: "Order not found" });
 
-    res.json({ result: true, commande: commandeMiseAJour });
-  } catch (erreur) {
-    res.status(500).json({ result: false, message: erreur.message });
+    res.json({ result: true, order: updatedOrder });
+  } catch (error) {
+    res.status(500).json({ result: false, message: error.message });
   }
 });
 
-module.exports = routeur;
+module.exports = router;

@@ -1,3 +1,8 @@
+// ————————————————————————————————————————
+// Authentication Middleware
+// Verify token in header and attach user to request
+// ————————————————————————————————————————
+
 const User = require("../models/user");
 
 const verifyToken = async (req, res, next) => {

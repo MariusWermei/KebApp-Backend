@@ -1,20 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/commande");
-const User = require("../models/user");
 const verifyToken = require("../modules/checkToken");
 
 // ————————————————————————————————————————
-// Authentication Middleware
-// Verify token in header and attach user to request
-// ————————————————————————————————————————
-
-// ————————————————————————————————————————
 // GET /commandes
-// Retrieve all orders for connected user
-// Frontend handles separation:
-//   - isFinalized: false → "Ongoing orders"
-//   - isFinalized: true  → "Previous orders"
+// Récupérer toutes les commandes de l'utilisateur connecté
+//   - isFinalized: false → « Commandes en cours »
+//   - isFinalized: true → « Commandes précédentes »
 // ————————————————————————————————————————
 router.get("/", verifyToken, async (req, res) => {
   try {
@@ -28,7 +21,7 @@ router.get("/", verifyToken, async (req, res) => {
 });
 
 // ————————————————————————————————————————
-// Helper: Generate unique order number
+// Générer un numéro de commande unique
 // Format: CMD + YYYYMMDD + 4 random digits
 // ————————————————————————————————————————
 const generateOrderNumber = () => {
@@ -40,7 +33,6 @@ const generateOrderNumber = () => {
 
 // ————————————————————————————————————————
 // POST /commandes
-// Create a new order
 // ————————————————————————————————————————
 router.post("/", verifyToken, async (req, res) => {
   try {
@@ -61,14 +53,14 @@ router.post("/", verifyToken, async (req, res) => {
       });
     }
 
-    // Convert items to model format
+    // Convertir les éléments au format modèle
     const orderItems = items.map((item) => ({
       name: item.name,
       unitPrice: item.unitPrice,
       quantity: item.quantity,
     }));
 
-    // Create and save order with order number
+    // Créer et enregistrer une commande avec le numéro de commande
     const order = await new Order({
       orderNumber: generateOrderNumber(),
       userId: req.user._id,
@@ -87,8 +79,8 @@ router.post("/", verifyToken, async (req, res) => {
 
 // ————————————————————————————————————————
 // PUT /commandes/:id
-// Update order status
-// If status is "DELIVERED", order is automatically finalized
+// Mise à jour du statut de la commande
+// Si le statut est « LIVRÉ », la commande est automatiquement finalisée.
 // ————————————————————————————————————————
 router.put("/:id", verifyToken, async (req, res) => {
   try {

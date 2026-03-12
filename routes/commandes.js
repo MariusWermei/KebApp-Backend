@@ -2,23 +2,12 @@ const express = require("express");
 const router = express.Router();
 const Order = require("../models/commande");
 const User = require("../models/user");
+const verifyToken = require("../modules/checkToken");
 
 // ————————————————————————————————————————
 // Authentication Middleware
 // Verify token in header and attach user to request
 // ————————————————————————————————————————
-const verifyToken = async (req, res, next) => {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token)
-    return res.status(401).json({ result: false, message: "Token missing" });
-
-  const user = await User.findOne({ token });
-  if (!user)
-    return res.status(401).json({ result: false, message: "Invalid token" });
-
-  req.user = user;
-  next();
-};
 
 // ————————————————————————————————————————
 // GET /commandes
@@ -106,7 +95,7 @@ router.put("/:id", verifyToken, async (req, res) => {
     const { status } = req.body;
 
     const update = {
-      "orderStatus.status": status,
+      "orderStatus.step": status,
       "orderStatus.isFinalized": status === "DELIVERED",
     };
 

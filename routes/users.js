@@ -10,6 +10,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const jwksClient = require("jwks-rsa");
 const crypto = require("crypto");
+const verifyToken = require("../modules/checkToken");
 
 // ✅ Resend
 const { Resend } = require("resend");
@@ -348,7 +349,25 @@ router.get("/points", async (req, res) => {
     res.json({ result: false, error: error.message });
   }
 });
+// update points (après commande finalisée)
+router.put("/points", verifyToken, async (req, res) => {
+  try {
+    const { points } = req.body;
 
+    const updatedUser = await User.findOneAndUpdate(
+      { _id: req.user._id }, // ← on utilise req.user directement
+      { $inc: { points: points } },
+      { new: true },
+    );
+
+    if (!updatedUser)
+      return res.json({ result: false, error: "Utilisateur non trouvé" });
+
+    res.json({ result: true, points: updatedUser.points });
+  } catch (error) {
+    res.json({ result: false, error: error.message });
+  }
+});
 // ==============================
 // FORGOT PASSWORD (Resend + Expo Go link)
 // ==============================

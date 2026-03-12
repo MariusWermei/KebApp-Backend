@@ -23,20 +23,21 @@ const appleJwks = jwksClient({
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+// Global imports for all routes
+const cloudinary = require("cloudinary").v2;
+const uniqid = require("uniqid");
+const fs = require("fs");
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 // SIGNUP (création compte local)
 
 router.post("/signup", async (req, res) => {
   console.log("BODY =", req.body);
-  // Cloudinary
-  const cloudinary = require("cloudinary").v2;
-  const uniqid = require("uniqid");
-  const fs = require("fs");
-
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
 
   // ==============================
   // SIGNUP (création compte local)

@@ -7,8 +7,8 @@ const Restaurant = require("../models/restaurants");
 const { checkBody } = require("../modules/checkBody");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
-const jwksClient = require("jwks-rsa");
+// const jwt = require("jsonwebtoken");
+// const jwksClient = require("jwks-rsa");
 const crypto = require("crypto");
 const verifyToken = require("../modules/checkToken");
 
@@ -16,9 +16,9 @@ const verifyToken = require("../modules/checkToken");
 const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const appleJwks = jwksClient({
-  jwksUri: "https://appleid.apple.com/auth/keys",
-});
+// const appleJwks = jwksClient({
+//   jwksUri: "https://appleid.apple.com/auth/keys",
+// });
 
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -198,70 +198,70 @@ router.post("/google", async (req, res) => {
 // ==============================
 // APPLE AUTH
 // ==============================
-function getAppleKey(header, cb) {
-  appleJwks.getSigningKey(header.kid, (err, key) => {
-    if (err) return cb(err);
-    const signingKey = key.getPublicKey();
-    cb(null, signingKey);
-  });
-}
+// function getAppleKey(header, cb) {
+//   appleJwks.getSigningKey(header.kid, (err, key) => {
+//     if (err) return cb(err);
+//     const signingKey = key.getPublicKey();
+//     cb(null, signingKey);
+//   });
+// }
 
-router.post("/apple", async (req, res) => {
-  try {
-    const { identityToken } = req.body;
-    if (!identityToken)
-      return res.json({ result: false, error: "Missing identityToken" });
+// router.post("/apple", async (req, res) => {
+//   try {
+//     const { identityToken } = req.body;
+//     if (!identityToken)
+//       return res.json({ result: false, error: "Missing identityToken" });
 
-    const decoded = await new Promise((resolve, reject) => {
-      jwt.verify(
-        identityToken,
-        getAppleKey,
-        {
-          algorithms: ["RS256"],
-          audience: process.env.APPLE_CLIENT_ID, // Services ID ou Bundle ID selon ton setup
-          issuer: "https://appleid.apple.com",
-        },
-        (err, payload) => (err ? reject(err) : resolve(payload)),
-      );
-    });
+//     const decoded = await new Promise((resolve, reject) => {
+//       jwt.verify(
+//         identityToken,
+//         getAppleKey,
+//         {
+//           algorithms: ["RS256"],
+//           audience: process.env.APPLE_CLIENT_ID, // Services ID ou Bundle ID selon ton setup
+//           issuer: "https://appleid.apple.com",
+//         },
+//         (err, payload) => (err ? reject(err) : resolve(payload)),
+//       );
+//     });
 
-    const appleId = decoded.sub;
-    const email = decoded.email ? decoded.email.toLowerCase() : null;
+//     const appleId = decoded.sub;
+//     const email = decoded.email ? decoded.email.toLowerCase() : null;
 
-    // Apple ne renvoie pas toujours l'email à chaque login (souvent seulement la première fois)
-    let user = await User.findOne({ appleId });
-    if (!user && email) user = await User.findOne({ email });
+//     // Apple ne renvoie pas toujours l'email à chaque login (souvent seulement la première fois)
+//     let user = await User.findOne({ appleId });
+//     if (!user && email) user = await User.findOne({ email });
 
-    if (!user) {
-      user = new User({
-        email: email || `apple_${appleId}@no-email.local`, // solution simple si pas d'email
-        authProvider: "apple",
-        appleId,
-        token: uid2(32),
-      });
-    } else {
-      user.authProvider = "apple";
-      user.appleId = appleId;
-      user.token = uid2(32);
-    }
+//     if (!user) {
+//       user = new User({
+//         email: email || `apple_${appleId}@no-email.local`, // solution simple si pas d'email
+//         authProvider: "apple",
+//         appleId,
+//         token: uid2(32),
+//       });
+//     } else {
+//       user.authProvider = "apple";
+//       user.appleId = appleId;
+//       user.token = uid2(32);
+//     }
 
-    await user.save();
+//     await user.save();
 
-    res.json({
-      result: true,
-      token: user.token,
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-        points: user.points,
-        avatar: user.avatar || null,
-      },
-    });
-  } catch (e) {
-    res.json({ result: false, error: e.message });
-  }
-});
+//     res.json({
+//       result: true,
+//       token: user.token,
+//       user: {
+//         id: user._id,
+//         email: user.email,
+//         username: user.username,
+//         points: user.points,
+//         avatar: user.avatar || null,
+//       },
+//     });
+//   } catch (e) {
+//     res.json({ result: false, error: e.message });
+//   }
+// });
 
 // ==============================
 // UPDATE PREFERENCES

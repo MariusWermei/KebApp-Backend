@@ -1,9 +1,11 @@
 const express = require("express");
 const router = express.Router();
-
 const Restaurant = require("../models/restaurants");
 
-// Route 1: Recommandations par tags
+// ==============================
+// GET /restaurants/recommendations
+// Recommandations par tags (+ géoloc optionnelle)
+// ==============================
 router.get("/recommendations", async (req, res) => {
   try {
     const { tags, latitude, longitude, limit } = req.query;
@@ -16,13 +18,13 @@ router.get("/recommendations", async (req, res) => {
     const filter = { tags: { $in: tagsArray } };
 
     if (latitude && longitude) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
-
       const pipeline = [
         {
           $geoNear: {
-            near: { type: "Point", coordinates: [lng, lat] },
+            near: {
+              type: "Point",
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
+            },
             distanceField: "distance",
             spherical: true,
             query: filter,
@@ -35,7 +37,6 @@ router.get("/recommendations", async (req, res) => {
       return res.json({ result: true, restaurants });
     }
 
-    // Sans géoloc : tri par note
     const restaurants = await Restaurant.find(filter)
       .sort({ rating: -1 })
       .limit(parseInt(limit) || 10);
@@ -46,37 +47,32 @@ router.get("/recommendations", async (req, res) => {
   }
 });
 
-// Route 2: Liste générale des restaurants
+// ==============================
+// GET /restaurants
+// Liste générale avec filtres optionnels (search, tags, géoloc)
+// ==============================
 router.get("/", async (req, res) => {
   try {
     const { search, tags, latitude, longitude, limit } = req.query;
 
-    // On construit le filtre dynamiquement
     const filter = {};
 
-    // Recherche par nom (insensible à la casse)
     if (search) {
       filter.name = { $regex: search, $options: "i" };
     }
 
-    // Filtre par tags (ex: ?tags=halal,veggie)
     if (tags) {
-      const tagsArray = tags.split(",");
-      filter.tags = { $in: tagsArray };
+      filter.tags = { $in: tags.split(",") };
     }
 
-    let query = Restaurant.find(filter);
-
-    // Tri par distance si position fournie
     if (latitude && longitude) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
-
-      // Avec $geoNear on ne peut pas utiliser .find(), il faut aggregate
       const pipeline = [
         {
           $geoNear: {
-            near: { type: "Point", coordinates: [lng, lat] },
+            near: {
+              type: "Point",
+              coordinates: [parseFloat(longitude), parseFloat(latitude)],
+            },
             distanceField: "distance",
             spherical: true,
             query: filter,
@@ -84,66 +80,16 @@ router.get("/", async (req, res) => {
         },
       ];
 
-      if (limit) {
-        pipeline.push({ $limit: parseInt(limit) });
-      }
+      if (limit) pipeline.push({ $limit: parseInt(limit) });
 
       const restaurants = await Restaurant.aggregate(pipeline);
       return res.json({ result: true, restaurants });
     }
 
-    // Sans géoloc : tri par note décroissante
-    query = query.sort({ rating: -1 });
-
-    if (limit) {
-      query = query.limit(parseInt(limit));
-    }
+    let query = Restaurant.find(filter).sort({ rating: -1 });
+    if (limit) query = query.limit(parseInt(limit));
 
     const restaurants = await query;
-    res.json({ result: true, restaurants });
-  } catch (error) {
-    res.json({ result: false, error: error.message });
-  }
-});
-
-router.get("/recommendations", async (req, res) => {
-  try {
-    const { tags, latitude, longitude, limit } = req.query;
-
-    if (!tags) {
-      return res.json({ result: false, error: "Tags manquants" });
-    }
-
-    const tagsArray = tags.split(",");
-
-    // On cherche les restaurants qui ont AU MOINS un tag en commun
-    const filter = { tags: { $all: tagsArray } };
-
-    if (latitude && longitude) {
-      const lat = parseFloat(latitude);
-      const lng = parseFloat(longitude);
-
-      const pipeline = [
-        {
-          $geoNear: {
-            near: { type: "Point", coordinates: [lng, lat] },
-            distanceField: "distance",
-            spherical: true,
-            query: filter,
-          },
-        },
-        { $limit: parseInt(limit) || 10 },
-      ];
-
-      const restaurants = await Restaurant.aggregate(pipeline);
-      return res.json({ result: true, restaurants });
-    }
-
-    // Sans géoloc : tri par note
-    const restaurants = await Restaurant.find(filter)
-      .sort({ rating: -1 })
-      .limit(parseInt(limit) || 10);
-
     res.json({ result: true, restaurants });
   } catch (error) {
     res.json({ result: false, error: error.message });

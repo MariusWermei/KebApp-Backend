@@ -1,29 +1,19 @@
 var express = require("express");
 var router = express.Router();
 
-require("../models/connection");
 const User = require("../models/user");
-const Restaurant = require("../models/restaurants");
 const { checkBody } = require("../modules/checkBody");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
-// const jwt = require("jsonwebtoken");
-// const jwksClient = require("jwks-rsa");
 const crypto = require("crypto");
 const verifyToken = require("../modules/checkToken");
 
-// ✅ Resend
 const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-// const appleJwks = jwksClient({
-//   jwksUri: "https://appleid.apple.com/auth/keys",
-// });
 
 const { OAuth2Client } = require("google-auth-library");
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-// Global imports for all routes
 const cloudinary = require("cloudinary").v2;
 const uniqid = require("uniqid");
 const fs = require("fs");
@@ -34,20 +24,15 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// SIGNUP (création compte local)
-
+// ==============================
+// SIGNUP
+// ==============================
 router.post("/signup", async (req, res) => {
-  console.log("BODY =", req.body);
-
-  // ==============================
-  // SIGNUP (création compte local)
-  // ==============================
   if (!checkBody(req.body, ["email", "password"])) {
     return res.json({ result: false, error: "Missing or empty fields" });
   }
 
   try {
-    // Vérifie si email déjà utilisé
     const existingUser = await User.findOne({
       email: req.body.email.toLowerCase(),
     });
@@ -88,7 +73,7 @@ router.post("/signup", async (req, res) => {
 });
 
 // ==============================
-// SIGNIN (connexion locale)
+// SIGNIN
 // ==============================
 router.post("/signin", async (req, res) => {
   if (!checkBody(req.body, ["email", "password"])) {
@@ -115,7 +100,6 @@ router.post("/signin", async (req, res) => {
       });
     }
 
-    // Optionnel : régénérer un token à chaque login
     user.token = uid2(32);
     await user.save();
 
@@ -143,7 +127,6 @@ router.post("/google", async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.json({ result: false, error: "Missing idToken" });
 
-    // Vérifie le token Google (signature + audience)
     const ticket = await client.verifyIdToken({
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
@@ -172,7 +155,7 @@ router.post("/google", async (req, res) => {
       user.authProvider = "google";
       user.googleId = googleId;
       user.avatar = user.avatar || avatar;
-      user.token = uid2(32); // régénère ton token session
+      user.token = uid2(32);
     }
 
     await user.save();
@@ -192,76 +175,6 @@ router.post("/google", async (req, res) => {
     res.json({ result: false, error: e.message });
   }
 });
-
-//conexion with apple
-
-// ==============================
-// APPLE AUTH
-// ==============================
-// function getAppleKey(header, cb) {
-//   appleJwks.getSigningKey(header.kid, (err, key) => {
-//     if (err) return cb(err);
-//     const signingKey = key.getPublicKey();
-//     cb(null, signingKey);
-//   });
-// }
-
-// router.post("/apple", async (req, res) => {
-//   try {
-//     const { identityToken } = req.body;
-//     if (!identityToken)
-//       return res.json({ result: false, error: "Missing identityToken" });
-
-//     const decoded = await new Promise((resolve, reject) => {
-//       jwt.verify(
-//         identityToken,
-//         getAppleKey,
-//         {
-//           algorithms: ["RS256"],
-//           audience: process.env.APPLE_CLIENT_ID, // Services ID ou Bundle ID selon ton setup
-//           issuer: "https://appleid.apple.com",
-//         },
-//         (err, payload) => (err ? reject(err) : resolve(payload)),
-//       );
-//     });
-
-//     const appleId = decoded.sub;
-//     const email = decoded.email ? decoded.email.toLowerCase() : null;
-
-//     // Apple ne renvoie pas toujours l'email à chaque login (souvent seulement la première fois)
-//     let user = await User.findOne({ appleId });
-//     if (!user && email) user = await User.findOne({ email });
-
-//     if (!user) {
-//       user = new User({
-//         email: email || `apple_${appleId}@no-email.local`, // solution simple si pas d'email
-//         authProvider: "apple",
-//         appleId,
-//         token: uid2(32),
-//       });
-//     } else {
-//       user.authProvider = "apple";
-//       user.appleId = appleId;
-//       user.token = uid2(32);
-//     }
-
-//     await user.save();
-
-//     res.json({
-//       result: true,
-//       token: user.token,
-//       user: {
-//         id: user._id,
-//         email: user.email,
-//         username: user.username,
-//         points: user.points,
-//         avatar: user.avatar || null,
-//       },
-//     });
-//   } catch (e) {
-//     res.json({ result: false, error: e.message });
-//   }
-// });
 
 // ==============================
 // UPDATE PREFERENCES
@@ -307,34 +220,24 @@ router.put("/avatar", async (req, res) => {
 
     if (!resultMove) {
       const resultCloudinary = await cloudinary.uploader.upload(photoPath);
-
-      // ✅ Supprimer le fichier tmp après upload réussi
-      if (fs.existsSync(photoPath)) {
-        fs.unlinkSync(photoPath);
-      }
+      if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
 
       user.avatar = resultCloudinary.secure_url;
       await user.save();
 
       res.json({ result: true, avatar: user.avatar });
     } else {
-      // ✅ Supprimer le fichier tmp en cas d'erreur d'upload
-      if (fs.existsSync(photoPath)) {
-        fs.unlinkSync(photoPath);
-      }
+      if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
       res.json({ result: false, error: resultMove });
     }
   } catch (error) {
-    // ✅ Supprimer le fichier tmp en cas d'erreur
-    if (photoPath && fs.existsSync(photoPath)) {
-      fs.unlinkSync(photoPath);
-    }
+    if (photoPath && fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
     res.json({ result: false, error: error.message });
   }
 });
 
 // ==============================
-// GET POINTS (fetch points actualisés depuis la BDD)
+// GET POINTS
 // ==============================
 router.get("/points", async (req, res) => {
   try {
@@ -350,13 +253,16 @@ router.get("/points", async (req, res) => {
     res.json({ result: false, error: error.message });
   }
 });
-// update points (après commande finalisée)
+
+// ==============================
+// UPDATE POINTS
+// ==============================
 router.put("/points", verifyToken, async (req, res) => {
   try {
     const { points } = req.body;
 
     const updatedUser = await User.findOneAndUpdate(
-      { _id: req.user._id }, // ← on utilise req.user directement
+      { _id: req.user._id },
       { $inc: { points: points } },
       { new: true },
     );
@@ -369,8 +275,9 @@ router.put("/points", verifyToken, async (req, res) => {
     res.json({ result: false, error: error.message });
   }
 });
+
 // ==============================
-// FORGOT PASSWORD (Resend + Expo Go link)
+// FORGOT PASSWORD
 // ==============================
 router.post("/forgot-password", async (req, res) => {
   try {
@@ -379,7 +286,6 @@ router.post("/forgot-password", async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
 
-    // Toujours OK même si l'email n'existe pas (sécurité)
     if (!user) {
       return res.json({
         result: true,
@@ -392,10 +298,7 @@ router.post("/forgot-password", async (req, res) => {
     user.resetTokenExpiry = Date.now() + 3600000; // 1h
     await user.save();
 
-    // ✅ DEV Expo Go : exp://192.168.100.40:8081/--/reset-password?token=...
     const resetLink = `${process.env.RESET_URL}?token=${resetToken}`;
-    console.log("✉️  RESET LINK GÉNÉRÉ:", resetLink);
-    console.log("🔐 RESET TOKEN:", resetToken);
 
     await resend.emails.send({
       from: process.env.RESEND_FROM,
@@ -423,16 +326,14 @@ router.post("/forgot-password", async (req, res) => {
       `,
     });
 
-    console.log("🔐 Email de réinitialisation envoyé à:", user.email);
     res.json({ result: true, message: "Email envoyé si le compte existe" });
   } catch (error) {
-    console.log("Forgot password error:", error);
     res.json({ result: false, error: error.message });
   }
 });
 
 // ==============================
-// RESET PASSWORD (validation du token + changement mdp)
+// RESET PASSWORD
 // ==============================
 router.post("/reset-password", async (req, res) => {
   try {
@@ -449,10 +350,9 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Trouve l'utilisateur avec le token et vérifie l'expiration
     const user = await User.findOne({
       resetToken: token,
-      resetTokenExpiry: { $gt: Date.now() }, // Token pas expiré
+      resetTokenExpiry: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -462,61 +362,12 @@ router.post("/reset-password", async (req, res) => {
       });
     }
 
-    // Hash le nouveau mot de passe
-    const newHash = bcrypt.hashSync(newPassword, 10);
-
-    // Met à jour
-    user.password = newHash;
+    user.password = bcrypt.hashSync(newPassword, 10);
     user.resetToken = null;
     user.resetTokenExpiry = null;
     await user.save();
 
-    console.log("✅ Mot de passe réinitialisé pour :", user.email);
-
     res.json({ result: true, message: "Mot de passe réinitialisé" });
-  } catch (error) {
-    console.log("Reset password error:", error);
-    res.json({ result: false, error: error.message });
-  }
-});
-
-// ==============================
-// CLEAN TMP FOLDER (Cleanup old temp files)
-// ==============================
-router.post("/clean-tmp", async (req, res) => {
-  try {
-    const tmpDir = "./tmp";
-
-    // Créer le dossier tmp s'il n'existe pas
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true });
-      return res.json({
-        result: true,
-        message: "Dossier tmp créé",
-        cleaned: 0,
-      });
-    }
-
-    // Lire les fichiers du dossier tmp
-    const files = fs.readdirSync(tmpDir);
-    let cleaned = 0;
-
-    files.forEach((file) => {
-      const filePath = `${tmpDir}/${file}`;
-      try {
-        fs.unlinkSync(filePath);
-        cleaned++;
-      } catch (e) {
-        console.log(`❌ Erreur suppression ${file}:`, e.message);
-      }
-    });
-
-    console.log(`🧹 Nettoyage tmp: ${cleaned} fichier(s) supprimé(s)`);
-    res.json({
-      result: true,
-      message: `${cleaned} fichier(s) supprimé(s)`,
-      cleaned,
-    });
   } catch (error) {
     res.json({ result: false, error: error.message });
   }
